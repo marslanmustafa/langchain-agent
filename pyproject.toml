@@ -1,0 +1,14 @@
+[project]
+name = "langchain-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11.14"
+dependencies = [
+    "ddg>=0.2.2",
+    "langchain>=1.2.10",
+    "langchain-community>=0.4.1",
+    "langchain-groq>=1.1.2",
+    "langchain-ollama>=1.0.1",
+    "tiktoken>=0.12.0",
+]
