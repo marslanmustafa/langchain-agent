@@ -6,7 +6,8 @@ from datetime import datetime
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
     wrap_tool_call,
-    ToolRetryMiddleware
+    ToolRetryMiddleware,
+    ModelRetryMiddleware
 )
 from langchain_classic.agents import tool
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
@@ -28,7 +29,6 @@ from langgraph.checkpoint.memory import MemorySaver
 # from langgraph.checkpoint.postgres import PostgresSaver 
 
 # Model
-
 from langchain_ollama import ChatOllama
 
 
@@ -82,6 +82,27 @@ SYSTEM_RESEARCH_PROMPT = """You are a Meticulous Research Agent specialized in f
 ### CONSTRAINT:
 If you cannot find the answer after 3 tool attempts, admit the limitation rather than hallucinating. Do not repeat the same search query across different tools if it fails the first time."""
 
+@wrap_tool_call()
+def tool_handle_error(request, handler):
+    try:
+        return handler(request)    
+    except Exception as err:
+        print("generic error occurred")
+
+tool_retry = ToolRetryMiddleware(
+    max_retries=2,
+    tools=[ddgs_tool, arxiv_tool],
+    on_failure="continue",
+    max_delay=60,
+    backoff_factor=1.5
+)
+
+model_retry = ModelRetryMiddleware(
+    max_retries=3,
+    on_failure="continue",
+    max_delay=60,
+    backoff_factor=1.5
+)
 
 def create_reasearch_agent():
     llm = ChatOllama(
@@ -90,11 +111,12 @@ def create_reasearch_agent():
         )
     
     memory = MemorySaver()
+    middleware = [tool_handle_error, tool_retry, model_retry]
     agent = create_agent(
         model=llm,
         tools=tools,
         system_prompt=SYSTEM_RESEARCH_PROMPT,
-        middleware="",
+        middleware=middleware,
         name="research_agent",
         checkpointer=memory
     )
